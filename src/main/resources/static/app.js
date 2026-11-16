@@ -4,7 +4,7 @@ const $ = (s) => document.querySelector(s);
 const cop = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' });
 const fechaFmt = new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
 const TEL = /^\d{10}$/;
-const KEY = 'bancocobol.telefono';
+const KEY = 'bancobol.telefono';
 
 let cuenta = null;
 

@@ -1,4 +1,4 @@
-# BancoCOBOL
+# BanCOBOL
 
 Mini billetera digital (Spring Boot + Java 21) cuya lógica de saldo está escrita en COBOL.
 Un transpilador propio (lexer -> parser -> AST -> Java) traduce `src/main/resources/cobol/*.cob`
