@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#200020">
+<title>BancoCOBOL</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<!-- Sprite de iconos (trazos estilo lucide) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4"/><path d="M3 7h16a2 2 0 0 1 2 2v2"/><path d="M21 11h-4a2 2 0 0 0 0 4h4z"/></symbol>
+    <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 3"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/></symbol>
+    <symbol id="i-log-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></symbol>
+    <symbol id="i-user-plus" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></symbol>
+  </defs>
+</svg>
+
+<main class="app">
+
+  <!-- 1. Ingreso -->
+  <section id="v-login" class="view">
+    <div class="brand"><svg class="ico ico-lg"><use href="#i-wallet"/></svg><h1>BancoCOBOL</h1></div>
+    <p class="muted">Tu billetera digital con lógica en COBOL.</p>
+
+    <form id="f-login" class="card" novalidate>
+      <h2>Ingresar</h2>
+      <label for="login-tel">Número de celular</label>
+      <input id="login-tel" name="telefono" type="tel" inputmode="numeric" maxlength="10" pattern="[0-9]{10}" autocomplete="tel" placeholder="3001234567" required>
+      <button type="submit" class="btn">Entrar</button>
+      <p class="msg" role="status"></p>
+      <button type="button" class="link" data-go="v-registro"><svg class="ico"><use href="#i-user-plus"/></svg>¿No tienes cuenta? Regístrate</button>
+    </form>
+  </section>
+
+  <section id="v-registro" class="view" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" data-go="v-login" aria-label="Volver"><svg class="ico"><use href="#i-back"/></svg></button>
+      <h2>Crear cuenta</h2>
+    </header>
+    <form id="f-registro" class="card" novalidate>
+      <label for="reg-tel">Número de celular</label>
+      <input id="reg-tel" name="telefono" type="tel" inputmode="numeric" maxlength="10" pattern="[0-9]{10}" placeholder="3001234567" required>
+      <label for="reg-nombre">Nombre</label>
+      <input id="reg-nombre" name="nombre" type="text" autocomplete="given-name" maxlength="40" required>
+      <button type="submit" class="btn"><svg class="ico"><use href="#i-user-plus"/></svg>Registrarme</button>
+      <p class="msg" role="status"></p>
+    </form>
+  </section>
+
+  <!-- 2. Inicio -->
+  <section id="v-inicio" class="view" hidden>
+    <header class="bar">
+      <h2 id="saludo">Hola</h2>
+      <button type="button" class="icon-btn" id="btn-salir" aria-label="Salir"><svg class="ico"><use href="#i-log-out"/></svg></button>
+    </header>
+    <div class="saldo">
+      <span class="muted">Saldo disponible</span>
+      <strong id="saldo">$ 0</strong>
+      <span class="muted" id="tel-actual"></span>
+    </div>
+    <nav class="acciones" aria-label="Acciones">
+      <button type="button" data-go="v-consignar"><svg class="ico"><use href="#i-arrow-down"/></svg>Consignar</button>
+      <button type="button" data-go="v-retirar"><svg class="ico"><use href="#i-arrow-up"/></svg>Retirar</button>
+      <button type="button" data-go="v-transferir"><svg class="ico"><use href="#i-send"/></svg>Transferir</button>
+      <button type="button" data-go="v-compilador"><svg class="ico"><use href="#i-code"/></svg>Compilador</button>
+    </nav>
+    <h3 class="sub"><svg class="ico"><use href="#i-history"/></svg>Últimos movimientos</h3>
+    <ul id="movs" class="movs"></ul>
+  </section>
+
+  <!-- 3. Operaciones -->
+  <section id="v-consignar" class="view" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" data-go="v-inicio" aria-label="Volver"><svg class="ico"><use href="#i-back"/></svg></button>
+      <h2>Consignar</h2>
+    </header>
+    <form class="card op" data-op="consignar" novalidate>
+      <label for="c-monto">Monto (COP)</label>
+      <input id="c-monto" name="monto" type="number" inputmode="numeric" min="1" step="1" required>
+      <button type="submit" class="btn">Consignar</button>
+      <p class="msg" role="status"></p>
+    </form>
+  </section>
+
+  <section id="v-retirar" class="view" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" data-go="v-inicio" aria-label="Volver"><svg class="ico"><use href="#i-back"/></svg></button>
+      <h2>Retirar</h2>
+    </header>
+    <form class="card op" data-op="retirar" novalidate>
+      <label for="r-monto">Monto (COP)</label>
+      <input id="r-monto" name="monto" type="number" inputmode="numeric" min="1" step="1" required>
+      <button type="submit" class="btn">Retirar</button>
+      <p class="msg" role="status"></p>
+    </form>
+  </section>
+
+  <section id="v-transferir" class="view" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" data-go="v-inicio" aria-label="Volver"><svg class="ico"><use href="#i-back"/></svg></button>
+      <h2>Transferir</h2>
+    </header>
+    <form class="card op" data-op="transferir" novalidate>
+      <label for="t-destino">Celular destino</label>
+      <input id="t-destino" name="destino" type="tel" inputmode="numeric" maxlength="10" pattern="[0-9]{10}" required>
+      <label for="t-monto">Monto (COP)</label>
+      <input id="t-monto" name="monto" type="number" inputmode="numeric" min="1" step="1" required>
+      <button type="submit" class="btn">Enviar</button>
+      <p class="msg" role="status"></p>
+    </form>
+  </section>
+
+  <!-- 4. Compilador -->
+  <section id="v-compilador" class="view view-wide" hidden>
+    <header class="bar">
+      <button type="button" class="icon-btn" data-go="v-inicio" aria-label="Volver"><svg class="ico"><use href="#i-back"/></svg></button>
+      <h2>Compilador COBOL</h2>
+    </header>
+    <p class="flujo">COBOL &rarr; lexer &rarr; parser &rarr; AST &rarr; Java &rarr; javac en memoria &rarr; ejecución</p>
+    <label for="sel-prog">Programa</label>
+    <select id="sel-prog"></select>
+    <p class="msg" id="comp-msg" role="status"></p>
+    <div class="codigos">
+      <div><h3>COBOL</h3><pre><code id="code-cobol"></code></pre></div>
+      <div><h3>Java generado</h3><pre><code id="code-java"></code></pre></div>
+    </div>
+  </section>
+
+</main>
+<script src="app.js"></script>
+</body>
+</html>
