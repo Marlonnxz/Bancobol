@@ -16,3 +16,7 @@ El saldo persiste en `./data/banco.mv.db` (H2 en archivo).
 ## Pruebas
 
     mvn test
+
+## Documentación
+
+Ver [doc/](doc/README.md): arquitectura, subconjunto COBOL, fases del transpilador y API.
