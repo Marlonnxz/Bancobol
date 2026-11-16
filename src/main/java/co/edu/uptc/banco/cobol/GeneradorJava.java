@@ -37,7 +37,7 @@ public class GeneradorJava {
         linea("");
         linea("@Override");
         abrir("public void accept(Map<String, BigDecimal> memoria) {");
-        linea("// WORKING-STORAGE SECTION");
+        linea("// WORKING-STORAGE y LINKAGE SECTION");
         for (Variable v : p.variables()) {
             linea("BigDecimal " + identificador(v.nombre()) + " = leer(memoria, \"" + v.nombre() + "\", \""
                     + v.valor() + "\"); // PIC " + v.pic());

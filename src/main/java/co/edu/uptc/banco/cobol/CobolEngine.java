@@ -19,9 +19,11 @@ import java.util.function.Consumer;
 @Component
 public class CobolEngine {
 
-    private static final List<String> PROGRAMAS = List.of("DEPOSITO", "RETIRO", "TRANSFERENCIA");
+    private static final List<String> PROGRAMAS = List.of(
+            "APERTURA", "CONSULTA", "DEPOSITO", "RETIRO", "TRANSFERENCIA");
 
     private final Map<String, Consumer<Map<String, BigDecimal>>> compilados = new ConcurrentHashMap<>();
+    private final Map<String, Ast.Programa> arboles = new ConcurrentHashMap<>();
 
     public List<String> programas() {
         return PROGRAMAS;
@@ -37,11 +39,16 @@ public class CobolEngine {
         }
     }
 
+    /** AST del programa (cacheado); CobolDll lo usa para saber el orden y tipo de los parametros USING. */
+    public Ast.Programa ast(String programa) {
+        return arboles.computeIfAbsent(programa, p -> new Parser(new Lexer(fuente(p)).tokens()).programa());
+    }
+
     public String transpilar(String programa) {
         return transpilarFuente(fuente(programa));
     }
 
-    /** Ejecuta el programa sobre una copia de la entrada y devuelve todas sus variables WORKING-STORAGE. */
+    /** Ejecuta el Java transpilado (en memoria) sobre una copia de la entrada y devuelve todas sus variables WORKING-STORAGE. */
     public Map<String, BigDecimal> ejecutar(String programa, Map<String, BigDecimal> entrada) {
         Consumer<Map<String, BigDecimal>> ejecutable = compilados.computeIfAbsent(programa, this::compilar);
         Map<String, BigDecimal> memoria = new LinkedHashMap<>(entrada);
@@ -56,7 +63,7 @@ public class CobolEngine {
 
     @SuppressWarnings("unchecked")
     private Consumer<Map<String, BigDecimal>> compilar(String programa) {
-        Ast.Programa ast = new Parser(new Lexer(fuente(programa)).tokens()).programa();
+        Ast.Programa ast = ast(programa);
         String codigo = new GeneradorJava().generar(ast);
         String nombreClase = GeneradorJava.nombreClase(ast.nombre());
         try {

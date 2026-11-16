@@ -1,0 +1,25 @@
+*> Consulta: verifica que el SALDO guardado sea valido antes de mostrarlo.
+*> CODIGO: 0 = ok, 3 = saldo inconsistente (negativo).
+IDENTIFICATION DIVISION.
+PROGRAM-ID. CONSULTA.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+*> COMP-5 se muestra sin punto decimal; esta copia en formato DISPLAY si lo tiene.
+01 SALDO-VER PIC S9(12)V99 VALUE 0.
+
+LINKAGE SECTION.
+01 SALDO   PIC S9(12)V99 COMP-5.
+01 CODIGO  PIC S9(9)     COMP-5.
+
+PROCEDURE DIVISION USING SALDO CODIGO.
+    IF SALDO < 0
+        MOVE 3 TO CODIGO
+        MOVE SALDO TO SALDO-VER
+        DISPLAY 'CONSULTA: SALDO INCONSISTENTE ' SALDO-VER
+    ELSE
+        MOVE 0 TO CODIGO
+        MOVE SALDO TO SALDO-VER
+        DISPLAY 'CONSULTA OK, SALDO: ' SALDO-VER
+    END-IF.
+    GOBACK.

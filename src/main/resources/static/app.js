@@ -5,6 +5,10 @@ const cop = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' 
 const fechaFmt = new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
 const TEL = /^\d{10}$/;
 const KEY = 'bancobol.telefono';
+// Timeouts: cada petición tiene un límite y la sesión se cierra sola si no hay actividad.
+const TIMEOUT_PETICION_MS = 8000;
+const INACTIVIDAD_MS = 120000;
+const AVISO_MS = 30000;
 
 let cuenta = null;
 
@@ -20,8 +24,20 @@ async function api(path, body) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   };
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_PETICION_MS);
   let res;
-  try { res = await fetch(path, opts); } catch { throw new Error('No hay conexión con el servidor'); }
+  try {
+    res = await fetch(path, { ...opts, signal: ctrl.signal });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(`El servidor no respondió en ${TIMEOUT_PETICION_MS / 1000} s. ` +
+        (body === undefined ? 'Intenta de nuevo.' : 'Revisa tus movimientos antes de repetir la operación.'));
+    }
+    throw new Error('No hay conexión con el servidor');
+  } finally {
+    clearTimeout(timer);
+  }
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error((data && data.error) || `Error ${res.status}`);
   return data;
@@ -61,7 +77,42 @@ function entrar(c) {
   cuenta = c;
   store.set(c.telefono);
   show('v-inicio');
+  reiniciarInactividad();
 }
+
+function salir(motivo) {
+  cuenta = null;
+  store.del();
+  reiniciarInactividad();
+  $('#f-login').reset();
+  show('v-login');
+  if (motivo) msg($('#f-login .msg'), motivo, false);
+}
+
+// ---- Timeout de sesión por inactividad ----
+let tInactivo = 0;
+let tCuenta = 0;
+
+function reiniciarInactividad() {
+  clearTimeout(tInactivo);
+  clearInterval(tCuenta);
+  $('#aviso').hidden = true;
+  if (cuenta) tInactivo = setTimeout(avisarCierre, INACTIVIDAD_MS - AVISO_MS);
+}
+
+function avisarCierre() {
+  let s = AVISO_MS / 1000;
+  $('#aviso-seg').textContent = s;
+  $('#aviso').hidden = false;
+  tCuenta = setInterval(() => {
+    s -= 1;
+    $('#aviso-seg').textContent = s;
+    if (s <= 0) salir('Tu sesión se cerró por inactividad.');
+  }, 1000);
+}
+
+['click', 'keydown', 'touchstart'].forEach((ev) =>
+  document.addEventListener(ev, () => { if (cuenta) reiniciarInactividad(); }, { passive: true }));
 
 // ---- Ingreso / registro ----
 $('#f-login').addEventListener('submit', (e) => {
@@ -77,19 +128,16 @@ $('#f-registro').addEventListener('submit', (e) => {
   e.preventDefault();
   const telefono = $('#reg-tel').value.trim();
   const nombre = $('#reg-nombre').value.trim();
+  const saldoInicial = Number($('#reg-saldo').value || 0);
   enviar(e.target, async (out) => {
     if (!TEL.test(telefono)) return msg(out, 'El celular debe tener 10 dígitos', false);
     if (!nombre) return msg(out, 'Escribe tu nombre', false);
-    entrar(await api('/api/cuentas', { telefono, nombre }));
+    if (!Number.isFinite(saldoInicial) || saldoInicial < 0) return msg(out, 'El saldo inicial no puede ser negativo', false);
+    entrar(await api('/api/cuentas', { telefono, nombre, saldoInicial }));
   });
 });
 
-$('#btn-salir').addEventListener('click', () => {
-  cuenta = null;
-  store.del();
-  $('#f-login').reset();
-  show('v-login');
-});
+$('#btn-salir').addEventListener('click', () => salir());
 
 // ---- Inicio ----
 const TIPOS = {

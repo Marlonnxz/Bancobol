@@ -14,10 +14,11 @@ import java.util.Map;
  *
  * <pre>
  * programa    ::= IDENTIFICATION DIVISION . PROGRAM-ID . nombre .
- *                 DATA DIVISION . WORKING-STORAGE SECTION . variable*
- *                 PROCEDURE DIVISION . sentencia*
- * variable    ::= nivel nombre PIC mascara [VALUE ['-'] numero] .
- * sentencia   ::= (move | add | subtract | compute | if | display | STOP RUN) ['.']
+ *                 DATA DIVISION . [WORKING-STORAGE SECTION . variable*]
+ *                 [LINKAGE SECTION . variable*]
+ *                 PROCEDURE DIVISION [USING variable+] . sentencia*
+ * variable    ::= nivel nombre PIC mascara [[USAGE [IS]] COMP-5] [VALUE ['-'] numero] .
+ * sentencia   ::= (move | add | subtract | compute | if | display | STOP RUN | GOBACK) ['.']
  * move        ::= MOVE factor TO variable
  * add         ::= ADD factor TO variable
  * subtract    ::= SUBTRACT factor FROM variable
@@ -48,13 +49,25 @@ public class Parser {
         String nombre = esperarTipo(Tipo.PALABRA, "el nombre del programa").texto(); punto();
 
         esperar("DATA"); esperar("DIVISION"); punto();
-        esperar("WORKING-STORAGE"); esperar("SECTION"); punto();
-        while (actual().tipo() == Tipo.NUMERO) variable();
+        if (aceptar("WORKING-STORAGE")) {
+            esperar("SECTION"); punto();
+            while (actual().tipo() == Tipo.NUMERO) variable();
+        }
+        // LINKAGE: parametros que llegan por referencia desde quien llama (CALL o Java via JNA)
+        if (aceptar("LINKAGE")) {
+            esperar("SECTION"); punto();
+            while (actual().tipo() == Tipo.NUMERO) variable();
+        }
 
-        esperar("PROCEDURE"); esperar("DIVISION"); punto();
+        esperar("PROCEDURE"); esperar("DIVISION");
+        List<String> usando = new ArrayList<>();
+        if (aceptar("USING")) {
+            do usando.add(variableDeclarada()); while (esVariable(actual()));
+        }
+        punto();
         List<Sentencia> sentencias = sentencias();
         if (actual().tipo() != Tipo.FIN) throw error("'" + actual().texto() + "' sin IF correspondiente");
-        return new Programa(nombre, List.copyOf(variables.values()), sentencias);
+        return new Programa(nombre, List.copyOf(variables.values()), List.copyOf(usando), sentencias);
     }
 
     // ---------------- DATA DIVISION ----------------
@@ -70,6 +83,14 @@ public class Parser {
         }
         if (!aceptar("PIC")) esperar("PICTURE");
         String pic = esperarTipo(Tipo.PIC, "la máscara PIC").texto();
+        boolean binario; // COMP-5: entero binario nativo, el formato que Java entrega por JNA
+        if (aceptar("USAGE")) {
+            aceptar("IS");
+            esperar("COMP-5");
+            binario = true;
+        } else {
+            binario = aceptar("COMP-5");
+        }
         String valor = "0";
         if (aceptar("VALUE")) {
             if (!(aceptar("ZERO") || aceptar("ZEROS") || aceptar("ZEROES"))) {
@@ -78,7 +99,7 @@ public class Parser {
             }
         }
         punto();
-        variables.put(nombre.texto(), new Variable(nombre.texto(), pic, valor));
+        variables.put(nombre.texto(), new Variable(nombre.texto(), pic, binario, valor));
     }
 
     // ---------------- PROCEDURE DIVISION ----------------
@@ -142,6 +163,10 @@ public class Parser {
                 esperar("RUN");
                 return new StopRun();
             }
+            case "GOBACK":
+                // En un subprograma de la DLL se usa GOBACK (STOP RUN cerraria la JVM entera);
+                // para el Java generado ambos significan "terminar el programa".
+                return new StopRun();
             default:
                 throw new CobolException(t.linea(), "sentencia desconocida '" + t.texto() + "'");
         }

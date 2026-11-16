@@ -6,10 +6,11 @@ import java.util.List;
 public final class Ast {
     private Ast() {}
 
-    public record Programa(String nombre, List<Variable> variables, List<Sentencia> sentencias) {}
+    /** usando: parametros de PROCEDURE DIVISION USING, en el orden en que los recibe la DLL. */
+    public record Programa(String nombre, List<Variable> variables, List<String> usando, List<Sentencia> sentencias) {}
 
-    /** Entrada de WORKING-STORAGE: 01 NOMBRE PIC mascara [VALUE valor]. */
-    public record Variable(String nombre, String pic, String valor) {}
+    /** Entrada de WORKING-STORAGE o LINKAGE: 01 NOMBRE PIC mascara [COMP-5] [VALUE valor]. */
+    public record Variable(String nombre, String pic, boolean binario, String valor) {}
 
     // ---- Sentencias de la PROCEDURE DIVISION ----
     public sealed interface Sentencia permits Move, Add, Subtract, Compute, If, Display, StopRun {}

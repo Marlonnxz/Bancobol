@@ -19,11 +19,18 @@
     <symbol id="i-code" viewBox="0 0 24 24"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/></symbol>
     <symbol id="i-log-out" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></symbol>
     <symbol id="i-user-plus" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></symbol>
   </defs>
 </svg>
 
 <main class="app">
+
+  <div id="aviso" class="aviso" role="alert" hidden>
+    <svg class="ico" aria-hidden="true"><use href="#i-clock"/></svg>
+    <span>Tu sesión se cerrará en <b id="aviso-seg">30</b> s por inactividad.</span>
+    <button type="button" class="btn-sm">Seguir conectado</button>
+  </div>
 
   <!-- 1. Ingreso -->
   <section id="v-login" class="view">
@@ -50,6 +57,8 @@
       <input id="reg-tel" name="telefono" type="tel" inputmode="numeric" maxlength="10" pattern="[0-9]{10}" placeholder="3001234567" required>
       <label for="reg-nombre">Nombre</label>
       <input id="reg-nombre" name="nombre" type="text" autocomplete="given-name" maxlength="40" required>
+      <label for="reg-saldo">Saldo inicial (COP, opcional)</label>
+      <input id="reg-saldo" name="saldoInicial" type="number" inputmode="numeric" min="0" step="1" placeholder="0">
       <button type="submit" class="btn"><svg class="ico"><use href="#i-user-plus"/></svg>Registrarme</button>
       <p class="msg" role="status"></p>
     </form>
@@ -124,7 +133,8 @@
       <button type="button" class="icon-btn" data-go="v-inicio" aria-label="Volver"><svg class="ico"><use href="#i-back"/></svg></button>
       <h2>Compilador COBOL</h2>
     </header>
-    <p class="flujo">COBOL &rarr; lexer &rarr; parser &rarr; AST &rarr; Java &rarr; javac en memoria &rarr; ejecución</p>
+    <p class="flujo">Transpilador: COBOL &rarr; lexer &rarr; parser &rarr; AST &rarr; Java generado.<br>
+      Ejecución: los mismos .cob compilados con GnuCOBOL en <b>banco.dll</b> y llamados desde Java con JNA.</p>
     <label for="sel-prog">Programa</label>
     <select id="sel-prog"></select>
     <p class="msg" id="comp-msg" role="status"></p>

@@ -3,6 +3,7 @@ package co.edu.uptc.banco.cobol;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -75,6 +76,30 @@ class CobolEngineTest {
         assertEquals(bd("10"), r.get("SALDO-ORIGEN"));
         assertEquals(bd("20"), r.get("SALDO-DESTINO"));
         assertEquals(bd("2"), r.get("CODIGO"));
+    }
+
+    @Test
+    void aperturaFijaSaldoInicial() {
+        Map<String, BigDecimal> r = motor.ejecutar("APERTURA", Map.of("MONTO", bd("2500")));
+        assertEquals(bd("2500"), r.get("SALDO"));
+        assertEquals(bd("0"), r.get("CODIGO"));
+        assertEquals(bd("1"), motor.ejecutar("APERTURA", Map.of("MONTO", bd("-1"))).get("CODIGO"));
+    }
+
+    @Test
+    void consultaDetectaSaldoNegativo() {
+        assertEquals(bd("0"), motor.ejecutar("CONSULTA", Map.of("SALDO", bd("10"))).get("CODIGO"));
+        assertEquals(bd("3"), motor.ejecutar("CONSULTA", Map.of("SALDO", bd("-10"))).get("CODIGO"));
+    }
+
+    @Test
+    void parametrosUsingEnOrdenYBinarios() {
+        Ast.Programa p = motor.ast("TRANSFERENCIA");
+        assertEquals(List.of("SALDO-ORIGEN", "SALDO-DESTINO", "MONTO", "CODIGO"), p.usando());
+        assertTrue(p.variables().stream().allMatch(Ast.Variable::binario));
+        assertEquals(12, CobolDll.digitos("S9(12)V99", true));
+        assertEquals(2, CobolDll.digitos("S9(12)V99", false));
+        assertEquals(9, CobolDll.digitos("S9(9)", true));
     }
 
     @Test

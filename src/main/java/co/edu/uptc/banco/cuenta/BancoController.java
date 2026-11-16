@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api")
 public class BancoController {
-    record NuevaCuenta(String telefono, String nombre) {}
+    record NuevaCuenta(String telefono, String nombre, BigDecimal saldoInicial) {}
     record Monto(BigDecimal monto) {}
     record Transferencia(String origen, String destino, BigDecimal monto) {}
     record ProgramaCobol(String programa, String cobol, String java) {}
@@ -35,7 +35,7 @@ public class BancoController {
     @PostMapping("/cuentas")
     @ResponseStatus(HttpStatus.CREATED)
     public Cuenta crear(@RequestBody NuevaCuenta c) {
-        return banco.crear(c.telefono(), c.nombre());
+        return banco.crear(c.telefono(), c.nombre(), c.saldoInicial());
     }
 
     @GetMapping("/cuentas/{telefono}")

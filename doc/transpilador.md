@@ -20,6 +20,11 @@ flowchart LR
 | 4. Compilación | texto Java | bytecode en memoria | (el trabajo lo hace `javac`) |
 | 5. Ejecución | bytecode + saldos | saldos nuevos | |
 
+El transpilador **no** es lo que mueve el dinero: eso lo hace `banco.dll`, compilada con GnuCOBOL a
+partir de los mismos `.cob` (ver [dll.md](dll.md)). El transpilador sirve para la pantalla
+Compilador, para las pruebas sin GnuCOBOL y para que `CobolDll` sepa, desde el AST, el orden y el
+tamaño de los parámetros de cada programa.
+
 Las fases 1 a 4 se hacen **una sola vez por programa**. El resultado queda guardado en caché y de ahí
 en adelante cada consignación solo ejecuta la clase ya compilada.
 
@@ -69,10 +74,11 @@ métodos de las reglas que contiene.
 
 ```
 programa    ::= IDENTIFICATION DIVISION . PROGRAM-ID . nombre .
-                DATA DIVISION . WORKING-STORAGE SECTION . variable*
-                PROCEDURE DIVISION . sentencia*
-variable    ::= nivel nombre PIC mascara [VALUE ['-'] numero] .
-sentencia   ::= (move | add | subtract | compute | if | display | STOP RUN) ['.']
+                DATA DIVISION . [WORKING-STORAGE SECTION . variable*]
+                [LINKAGE SECTION . variable*]
+                PROCEDURE DIVISION [USING variable+] . sentencia*
+variable    ::= nivel nombre PIC mascara [[USAGE [IS]] COMP-5] [VALUE ['-'] numero] .
+sentencia   ::= (move | add | subtract | compute | if | display | STOP RUN | GOBACK) ['.']
 move        ::= MOVE factor TO variable
 add         ::= ADD factor TO variable
 subtract    ::= SUBTRACT factor FROM variable
@@ -129,7 +135,7 @@ El generador **recorre el árbol** y escribe una línea de Java por cada nodo. U
 | `Add(MONTO, SALDO)` | `SALDO = SALDO.add(MONTO).setScale(2, HALF_EVEN);` |
 | `Comparacion(MONTO, "<=", 0)` | `MONTO.compareTo(new BigDecimal("0")) <= 0` |
 | `Binaria('/', A, B)` | `A.divide(B, 2, HALF_EVEN)` |
-| `StopRun` | `break programa;` |
+| `StopRun` (`STOP RUN` o `GOBACK`) | `break programa;` |
 
 Resultado para `DEPOSITO.cob` (lo mismo que muestra la pantalla Compilador de la app):
 
@@ -138,10 +144,11 @@ public class Cobol_DEPOSITO implements Consumer<Map<String, BigDecimal>> {
 
     @Override
     public void accept(Map<String, BigDecimal> memoria) {
-        // WORKING-STORAGE SECTION
+        // WORKING-STORAGE y LINKAGE SECTION
+        BigDecimal SALDO_VER = leer(memoria, "SALDO-VER", "0"); // PIC S9(12)V99
         BigDecimal SALDO = leer(memoria, "SALDO", "0"); // PIC S9(12)V99
         BigDecimal MONTO = leer(memoria, "MONTO", "0"); // PIC S9(12)V99
-        BigDecimal CODIGO = leer(memoria, "CODIGO", "0"); // PIC 9
+        BigDecimal CODIGO = leer(memoria, "CODIGO", "0"); // PIC S9(9)
 
         // PROCEDURE DIVISION (STOP RUN = break programa)
         programa: {
@@ -151,12 +158,14 @@ public class Cobol_DEPOSITO implements Consumer<Map<String, BigDecimal>> {
             } else {
                 SALDO = SALDO.add(MONTO).setScale(2, RoundingMode.HALF_EVEN);
                 CODIGO = new BigDecimal("0").setScale(2, RoundingMode.HALF_EVEN);
-                System.out.println("DEPOSITO OK, NUEVO SALDO: " + SALDO.toPlainString());
+                SALDO_VER = SALDO.setScale(2, RoundingMode.HALF_EVEN);
+                System.out.println("DEPOSITO OK, NUEVO SALDO: " + SALDO_VER.toPlainString());
             }
             break programa;
         }
 
         // Devuelve las variables al mapa
+        memoria.put("SALDO-VER", SALDO_VER);
         memoria.put("SALDO", SALDO);
         memoria.put("MONTO", MONTO);
         memoria.put("CODIGO", CODIGO);
@@ -167,6 +176,8 @@ public class Cobol_DEPOSITO implements Consumer<Map<String, BigDecimal>> {
 
 Decisiones de diseño:
 
+- **`COMP-5` no cambia el Java generado.** En la DLL decide cuántos bytes ocupa el número; en Java
+  todo es `BigDecimal`. `LINKAGE` y `WORKING-STORAGE` también se traducen igual: variables locales.
 - **El mapa `memoria` es la "WORKING-STORAGE".** Las variables entran por el mapa, se trabajan como
   variables locales y salen de nuevo por el mapa. Así el banco y el COBOL se comunican sin conocer
   la clase del otro.
@@ -191,13 +202,15 @@ Decisiones de diseño:
 
 Por eso la app necesita un **JDK** para correr: un JRE no incluye `javac`.
 
-## Fase 5: Ejecución
+## Fase 5: Ejecución (en memoria, para pruebas)
 
 ```java
 Map<String, BigDecimal> r = cobolEngine.ejecutar("DEPOSITO", Map.of("SALDO", saldo, "MONTO", monto));
 r.get("SALDO");   // nuevo saldo
-r.get("CODIGO");  // 0, 1 o 2
+r.get("CODIGO");  // 0, 1, 2 o 3
 ```
+
+En la app, `BancoService` usa `CobolDll.ejecutar(...)`, que tiene la misma firma pero llama a `banco.dll`.
 
 ## Errores con número de línea
 
@@ -213,10 +226,14 @@ Esto pasa la primera vez que se usa el programa, antes de tocar cualquier saldo.
 
 ## Pruebas
 
-`src/test/java/.../cobol/CobolEngineTest.java` (13 pruebas, se corren con `mvn test`) cubre:
+`src/test/java/.../cobol/CobolEngineTest.java` (16 pruebas, se corren con `mvn test`) cubre:
 
-- cada programa en sus tres resultados: ok, monto inválido y fondos insuficientes;
+- cada programa en sus resultados: ok, monto inválido, fondos insuficientes y saldo inconsistente;
+- que `USING` conserve el orden de los parámetros y que `COMP-5` quede marcado en el AST;
 - errores léxicos y sintácticos, revisando la línea que se reporta;
 - un programa que no existe;
 - que `SALDO-ORIGEN` se traduzca como `SALDO_ORIGEN`;
 - `COMPUTE` con división y paréntesis.
+
+`CobolDllTest` llama a las cinco operaciones dentro de la `banco.dll` real, incluso con un saldo
+cercano al máximo para comprobar que viajan los 8 bytes. Se omite si la DLL no se ha compilado.

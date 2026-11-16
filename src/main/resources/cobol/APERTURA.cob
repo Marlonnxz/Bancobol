@@ -1,0 +1,26 @@
+*> Apertura: fija el SALDO inicial de una cuenta nueva a partir de MONTO.
+*> El saldo inicial puede ser 0. CODIGO: 0 = ok, 1 = monto invalido (negativo).
+IDENTIFICATION DIVISION.
+PROGRAM-ID. APERTURA.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+*> COMP-5 se muestra sin punto decimal; esta copia en formato DISPLAY si lo tiene.
+01 SALDO-VER PIC S9(12)V99 VALUE 0.
+
+LINKAGE SECTION.
+01 SALDO   PIC S9(12)V99 COMP-5.
+01 MONTO   PIC S9(12)V99 COMP-5.
+01 CODIGO  PIC S9(9)     COMP-5.
+
+PROCEDURE DIVISION USING SALDO MONTO CODIGO.
+    IF MONTO < 0
+        MOVE 1 TO CODIGO
+        DISPLAY 'APERTURA RECHAZADA: SALDO INICIAL INVALIDO'
+    ELSE
+        MOVE MONTO TO SALDO
+        MOVE 0 TO CODIGO
+        MOVE SALDO TO SALDO-VER
+        DISPLAY 'APERTURA OK, SALDO INICIAL: ' SALDO-VER
+    END-IF.
+    GOBACK.

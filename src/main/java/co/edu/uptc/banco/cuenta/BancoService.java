@@ -1,6 +1,6 @@
 package co.edu.uptc.banco.cuenta;
 
-import co.edu.uptc.banco.cobol.CobolEngine;
+import co.edu.uptc.banco.cobol.CobolDll;
 import co.edu.uptc.banco.cuenta.Movimiento.Tipo;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -10,37 +10,46 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Persiste cuentas y movimientos; las reglas de saldo viven en los programas COBOL. */
+/** Persiste cuentas y movimientos; las reglas de saldo viven en los programas COBOL de banco.dll. */
 @Service
 public class BancoService {
     private static final BigDecimal MAXIMO = new BigDecimal("999999999999.99"); // PIC 9(12)V99
 
     private final CuentaRepository cuentas;
     private final MovimientoRepository movimientos;
-    private final CobolEngine cobol;
+    private final CobolDll cobol;
 
-    BancoService(CuentaRepository cuentas, MovimientoRepository movimientos, CobolEngine cobol) {
+    BancoService(CuentaRepository cuentas, MovimientoRepository movimientos, CobolDll cobol) {
         this.cuentas = cuentas;
         this.movimientos = movimientos;
         this.cobol = cobol;
     }
 
     @Transactional
-    public Cuenta crear(String telefono, String nombre) {
+    public Cuenta crear(String telefono, String nombre, BigDecimal saldoInicial) {
         validarTelefono(telefono);
         if (nombre == null || nombre.isBlank()) throw new BancoException(HttpStatus.BAD_REQUEST, "El nombre es obligatorio");
         if (cuentas.existsById(telefono)) throw new BancoException(HttpStatus.CONFLICT, "Ya existe una cuenta con ese teléfono");
-        return cuentas.save(new Cuenta(telefono, nombre.trim()));
+        BigDecimal valor = normalizar(saldoInicial == null ? BigDecimal.ZERO : saldoInicial);
+        Map<String, BigDecimal> r = ejecutar("APERTURA", Map.of("MONTO", valor));
+        Cuenta cuenta = new Cuenta(telefono, nombre.trim());
+        cuenta.setSaldo(r.get("SALDO"));
+        cuentas.save(cuenta);
+        if (valor.signum() > 0)
+            movimientos.save(new Movimiento(telefono, Tipo.CONSIGNACION, valor, null, cuenta.getSaldo()));
+        return cuenta;
     }
 
     @Transactional(readOnly = true)
     public Cuenta consultar(String telefono) {
-        return cuentas.findById(telefono).orElseThrow(() -> noExiste(telefono));
+        Cuenta cuenta = cuentas.findById(telefono).orElseThrow(() -> noExiste(telefono));
+        ejecutar("CONSULTA", Map.of("SALDO", cuenta.getSaldo()));
+        return cuenta;
     }
 
     @Transactional(readOnly = true)
     public List<Movimiento> movimientos(String telefono) {
-        consultar(telefono);
+        if (!cuentas.existsById(telefono)) throw noExiste(telefono);
         return movimientos.findTop50ByTelefonoOrderByIdDesc(telefono);
     }
 
@@ -89,13 +98,15 @@ public class BancoService {
         return cuenta;
     }
 
-    /** Ejecuta el programa COBOL transpilado y traduce su CODIGO de retorno. */
+    /** Llama al programa COBOL de la DLL y traduce su CODIGO de retorno. */
     private Map<String, BigDecimal> ejecutar(String programa, Map<String, BigDecimal> entrada) {
         Map<String, BigDecimal> r = cobol.ejecutar(programa, entrada);
         return switch (r.get("CODIGO").intValue()) {
             case 0 -> r;
-            case 1 -> throw new BancoException(HttpStatus.BAD_REQUEST, "El monto debe ser mayor a cero");
+            case 1 -> throw new BancoException(HttpStatus.BAD_REQUEST, programa.equals("APERTURA")
+                    ? "El saldo inicial no puede ser negativo" : "El monto debe ser mayor a cero");
             case 2 -> throw new BancoException(HttpStatus.UNPROCESSABLE_ENTITY, "Fondos insuficientes");
+            case 3 -> throw new BancoException(HttpStatus.CONFLICT, "El saldo de la cuenta es inconsistente");
             default -> throw new IllegalStateException("Código COBOL desconocido: " + r.get("CODIGO"));
         };
     }
