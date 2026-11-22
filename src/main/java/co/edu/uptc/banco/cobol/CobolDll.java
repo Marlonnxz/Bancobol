@@ -2,6 +2,7 @@ package co.edu.uptc.banco.cobol;
 
 import com.sun.jna.Memory;
 import com.sun.jna.NativeLibrary;
+import com.sun.jna.Platform;
 import com.sun.jna.Pointer;
 import java.io.File;
 import java.math.BigDecimal;
@@ -31,10 +32,18 @@ public class CobolDll {
         File archivo = new File(rutaDll).getAbsoluteFile();
         if (!archivo.isFile())
             throw new IllegalStateException("No existe " + archivo + ": compile la DLL con compilar-dll.ps1");
-        // libcob se carga primero por ruta absoluta para que Windows resuelva la dependencia de banco.dll
-        NativeLibrary libcob = NativeLibrary.getInstance(new File(runtime, "libcob-4.dll").getAbsolutePath());
-        libcob.getFunction("cob_init").invokeVoid(new Object[]{0, Pointer.NULL});
-        this.dll = NativeLibrary.getInstance(archivo.getPath());
+        NativeLibrary libcob;
+        if (Platform.isWindows()) {
+            libcob = NativeLibrary.getInstance(new File(runtime, "libcob-4.dll").getAbsolutePath());
+            libcob.getFunction("cob_init").invokeVoid(new Object[]{0, Pointer.NULL});
+            this.dll = NativeLibrary.getInstance(archivo.getPath());
+        } else {
+            this.dll = NativeLibrary.getInstance(archivo.getPath());
+            libcob = NativeLibrary.getInstance("cob");
+            Memory argv = new Memory(8);
+            argv.setPointer(0, Pointer.NULL);
+            libcob.getFunction("cob_init").invokeVoid(new Object[]{0, argv});
+        }
     }
 
     /**

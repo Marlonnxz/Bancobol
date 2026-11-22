@@ -18,7 +18,8 @@ class CobolDllTest {
 
     @Test
     void cincoOperacionesEnLaDll() {
-        assumeTrue(new File("dll/banco.dll").isFile(), "falta dll/banco.dll");
+        assumeTrue(new File("dll/banco.dll").isFile() && (!com.sun.jna.Platform.isWindows() || new File("C:/msys64/mingw64/bin/libcob-4.dll").isFile()),
+                "falta dll/banco.dll o el runtime de GnuCOBOL");
         CobolDll dll = new CobolDll(new CobolEngine(), "dll/banco.dll", "C:/msys64/mingw64/bin");
 
         Map<String, BigDecimal> r = dll.ejecutar("APERTURA", Map.of("MONTO", bd("1000")));

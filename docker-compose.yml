@@ -1,0 +1,13 @@
+services:
+  bancobol:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bancobol-app
+    ports:
+      - "8080:8080"
+    environment:
+      - LD_PRELOAD=/opt/java/openjdk/lib/libjsig.so
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

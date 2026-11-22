@@ -65,6 +65,22 @@ ver y entender todas las fases de un compilador sobre los mismos programas.
 
 ## Cómo ejecutarlo
 
+### Opción 1: Con Docker (Recomendada)
+
+Solo necesitas tener instalado Docker Desktop:
+
+```powershell
+docker compose up --build -d
+```
+
+La app se iniciará automáticamente en [http://localhost:8080](http://localhost:8080) con GnuCOBOL y Java 21 configurados.
+Para detenerla:
+```powershell
+docker compose down
+```
+
+### Opción 2: Ejecución Local
+
 Se necesita:
 
 - un **JDK 21 o superior** (no un JRE: la pantalla Compilador usa `javac` mientras la app corre),
