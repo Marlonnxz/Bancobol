@@ -45,7 +45,7 @@ class NumberedCanvas(canvas.Canvas):
             
             self.setStrokeColor(colors.HexColor("#D0D5DD"))
             self.setLineWidth(0.6)
-            self.line(54, 11 * inch - 42, 8.5 * inch - 42)
+            self.line(54, 11 * inch - 42, 8.5 * inch - 54, 11 * inch - 42)
             
             # Footer
             self.line(54, 45, 8.5 * inch - 54, 45)
